@@ -24,6 +24,8 @@ find_package(image_transport REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Ceres REQUIRED)
 
+set(OpenCV_DIR "/opt/opencv-4.4.0/lib/cmake/opencv4")
+
 include_directories(${CERES_INCLUDE_DIRS})
 
 # include camera_models

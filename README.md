@@ -1,82 +1,67 @@
-# VINS-Fusion
+This repository contains a simple example of a px4 sitl communicating with ros2 to make the drone fly around in a circle automatically
 
-## ROS2 version of VINS-Fusion.
+Prerequisites:
 
-### Notices
-- code has been updated so that the vins package can be executed via ros2 run or ros2 launch
-- but Rviz config cannot be saved due to some issue.. still fixing
-- GPU enable/disable features also have been added: refer [EuRoC config](https://github.com/zinuok/VINS-Fusion-ROS2/blob/main/config/euroc/euroc_stereo_imu_config.yaml#L19-L21) (refered from [here](https://github.com/pjrambo/VINS-Fusion-gpu) and [here](https://github.com/pjrambo/VINS-Fusion-gpu/issues/33#issuecomment-1097642597))
-  - The GPU version has some CUDA library [dependencies: OpenCV with CUDA](https://github.com/zinuok/VINS-Fusion-ROS2/blob/main/vins/src/featureTracker/feature_tracker.h#L21-L23). Therefore, if it is a bothersome to you and only need the cpu version, please comment the following compiler macro at line 14 in the 'feature_tracker.h': .
-  ```bash
-  #define GPU_MODE 1
-  ```
-
-### Prerequisites
-- **System**
-  - Ubuntu 20.04
-  - ROS2 foxy
-- **Libraries**
-  - OpenCV 3.4.1 (with CUDA enabled option)
-  - OpenCV 3.4.1-contrib
-  - [Ceres Solver-2.1.0](http://ceres-solver.org/installation.html) (you can refer [here](https://github.com/zinuok/VINS-Fusion#-ceres-solver-1); just edit 1.14.0 to 2.1.0 for install.)
-  - [Eigen-3.3.9](https://github.com/zinuok/VINS-Fusion#-eigen-1)
-
-
-### sensor setup
-- camera: Intel realsense D435i
-- using following shell script, you can install realsense SDK with ROS2 package.
-```bash
-chmod +x realsense_install.sh
-bash realsense_install.sh
-```
-
-
-### build
-```bash
-cd $(PATH_TO_YOUR_ROS2_WS)/src
-git clone https://github.com/zinuok/VINS-Fusion-ROS2
-cd ..
-colcon build --symlink-install && source ./install/setup.bash && source ./install/local_setup.bash
-```
-
-### run
-```bash
-# vins
-ros2 run vins $(PATH_TO_YOUR_VINS_CONFIG_FILE)
-
-# Rviz2 visualization
-ros2 launch vins vins_rviz.launch.xml
-```
-
-
-## play bag recorded at ROS1
-Unfortunately, you can't just play back the bag file recorded at ROS1. 
-This is because the filesystem structure for bag file has been changed significantly.
-The bag file at ROS2 needs the folder with some meta data for each bag file, which is done using following commands.
-- you have to install [this pkg](https://gitlab.com/ternaris/rosbags)
-```bash
-pip install rosbags
-```
-
-- run
-```bash
-export PATH=$PATH:~/.local/bin
-rosbags-convert foo.bag --dst /path/to/bar
-```
+1. have px4_sitl installed, following the steps outlined here (Ubuntu): https://docs.px4.io/main/en/dev_setup/dev_env_linux_ubuntu.html
+2. install the QGC, as outlined here: https://docs.px4.io/main/en/dev_setup/qgc_daily_build.html
+3. install the uXFRCE-messaging system according to the steps outlined here: https://docs.px4.io/main/en/middleware/uxrce_dds.html#micro-xrce-dds-agent-installation
 
 
 
+Steps to run this package:
+
+1. Clone this repo into the a folder named drone_circle_pkg in the src directory of your ros2 workspace
+2. clone the px4 msgs repository into the src directory and follow the steps outlined here: https://docs.px4.io/main/en/ros2/user_guide.html
+3. cd .. into the root of the ros2 workspace, and run rosdep install -i --from-path src --rosdistro humble -y and then colcon build
+4. Open a seperate terminal, and execute the bash script launch_drone_circle in the terminal (make sure that this file is marked as executable). Before running, make sure the bash script is going into the right directories and executing the right package.
+6. Watch as the drone flies in a circle
+
+In order to spawn in the world file, follow theses steps:
+
+1. move the singleHouseWorld.sdf file to world folder in the Px4-Autopilot folder, the exact path is: /DIRECTORY_CONTAINING_PX4/PX4-Autopilot/Tools/simulation/gz/worlds
+2. open the singleHouseWorld.sdf file, and edit the uri pathways to where the singleHouse.dae file is located on your system, where the comments say to change the file path.
+3. if needed, change the scale of the model by editing the three numbers in the scale tag of the house model in the singleHouseWorld.sdf file.
+4. edit the launch_drone_circle.sh file and uncomment the singleHouseWorld make gz command, and comment out the previous make gz command.
+5. run the launch_drone_circle.sh file as before
 
 
+Things added by Harry:\
+Receiving messages from Gazebo and px4.
 
-## Original Readme:
+Install all the things mentioned above: 
 
-## 8. Acknowledgements
-We use [ceres solver](http://ceres-solver.org/) for non-linear optimization and [DBoW2](https://github.com/dorian3d/DBoW2) for loop detection, a generic [camera model](https://github.com/hengli/camodocal) and [GeographicLib](https://geographiclib.sourceforge.io/).
+Install gazebo ros2 bridge:\
+sudo apt install ros-humble-ros-gzharmonic
 
-## 9. License
-The source code is released under [GPLv3](http://www.gnu.org/licenses/) license.
+Main launch file: /ros2_project/src/drone_circle_pkg.sh
 
-We are still working on improving the code reliability. For any technical issues, please contact Tong Qin <qintonguavATgmail.com>.
+1. gnome-terminal -- bash -c "export DISPLAY=:0; sleep 2; cd ~/PX4-Autopilot && PX4_GZ_WORLD=baylands make px4_sitl gz_x500_depth; exec bash": To set a different sim environment, change PX4_GZ_WORLD=$simulation environment$, currently set to baylands. Drone model is set to gz_x500_depth, output are depth images and RGB images
+2. gnome-terminal -- bash -c "cd ~/drone_circle && source install/setup.bash && source ./install/setup.bash && sleep 30s && ros2 run drone_circle_pkg drone_circle_node; exec bash": launching the drone, instead of circles now it just hovers.
+3. gnome-terminal -- bash -c "sleep 31s && ros2 run ros_gz_bridge parameter_bridge \
+/world/baylands/model/x500_depth_0/link/camera_link/sensor/IMX214/image@sensor_msgs/msg/Image@ignition.msgs.Image \
+/camera_info@sensor_msgs/msg/CameraInfo@ignition.msgs.CameraInfo \
+/depth_camera/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked \
+/depth_camera@sensor_msgs/msg/Image@gz.msgs.Image \
+/world/baylands/model/x500_depth_0/link/base_link/sensor/imu_sensor/imu@sensor_msgs/msg/Imu[gz.msgs.IMU; exec bash": publish ros topic from gazebo
+4. gnome-terminal -- bash -c "ros2 run px4_odometry_converter odom_converter_node; exec bash": convert px4 odometry message to ros message
 
-For commercial inquiries, please contact Shaojie Shen <eeshaojieATust.hk>.
+To run VINS:\
+ros2 run vins vins_node /$ros_project_folder$/src/VINS-Fusion-ROS2/config/gazebo_x500/realsense_stereo_imu_config.yaml \
+For easier debugging, the odometry for FUEL is passed directly from px4. VINS can be ignored for now
+
+To run FUEL:
+ros2 launch exploration_manager exploration_combined_2.launch.py\
+Currently I have debugged it so that the nodes are subscribed to the correct topics, and all nodes can initialize.\
+Odometry topic: /odom\
+sensor_pose_topic: /pose_rotated (This topic is important, FUEL won't run without this from past experience. rotated [ 0.5, -0.5, 0.5, -0.5 ] from the odometry topic)\
+depth topic: /depth_camera, cloud topic: /depth_camera/points (just set one of these, either one is good and set the other to some random topic name)
+
+List of ROS2 topics that can be used:
+/depth_camera: depth camera from drone \
+/depth_camera/points: depth camera converted to pointcloud2 format\
+/odom: odometry from px4, converted by odom_converter_node\
+/pose_rotated: rotated odometry in the format of Posestamp, for sensor_pose_topic in FUEL\
+/world/baylands/model/x500_depth_0/link/base_link/sensor/imu_sensor/imu: IMU data\
+/world/baylands/model/x500_depth_0/link/camera_link/sensor/IMX214/image: RGB image (if need to change the scene, subscribers to these two topics need to be changed accordingly)
+
+
